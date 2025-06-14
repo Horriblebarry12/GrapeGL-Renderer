@@ -144,6 +144,13 @@
     <ClCompile Include="External\Header\glm\detail\glm.cpp" />
     <ClCompile Include="External\Header\glm\glm.cppm" />
     <ClCompile Include="External\Source\glad\glad.c" />
+    <ClCompile Include="External\Header\imGUI\imgui.cpp" />
+    <ClCompile Include="External\Header\imGUI\imgui_demo.cpp" />
+    <ClCompile Include="External\Header\imGUI\imgui_draw.cpp" />
+    <ClCompile Include="External\Header\imGUI\imgui_impl_glfw.cpp" />
+    <ClCompile Include="External\Header\imGUI\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="External\Header\imGUI\imgui_tables.cpp" />
+    <ClCompile Include="External\Header\imGUI\imgui_widgets.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="src\GrapeGL Renderer.cpp" />
     <ClCompile Include="src\Model.cpp" />
@@ -302,9 +309,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <FileType>Document</FileType>
     </CopyFileToFolders>
-    <None Include="workingDir\Basic Shader.glsl" />
     <None Include="workingDir\box.blend" />
-    <None Include="workingDir\Default Shader.glsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\Header\assimp\aabb.h" />
@@ -682,6 +687,15 @@
     <ClInclude Include="External\Header\glm\vec3.hpp" />
     <ClInclude Include="External\Header\glm\vec4.hpp" />
     <ClInclude Include="External\Header\glm\vector_relational.hpp" />
+    <ClInclude Include="External\Header\imGUI\imconfig.h" />
+    <ClInclude Include="External\Header\imGUI\imgui.h" />
+    <ClInclude Include="External\Header\imGUI\imgui_impl_glfw.h" />
+    <ClInclude Include="External\Header\imGUI\imgui_impl_opengl3.h" />
+    <ClInclude Include="External\Header\imGUI\imgui_impl_opengl3_loader.h" />
+    <ClInclude Include="External\Header\imGUI\imgui_internal.h" />
+    <ClInclude Include="External\Header\imGUI\imstb_rectpack.h" />
+    <ClInclude Include="External\Header\imGUI\imstb_textedit.h" />
+    <ClInclude Include="External\Header\imGUI\imstb_truetype.h" />
     <ClInclude Include="External\Header\KHR\khrplatform.h" />
     <ClInclude Include="src\Common.h" />
     <ClInclude Include="src\Mesh.h" />

@@ -5,27 +5,21 @@
 #include "Shader.h"
 #include "Common.h"
 
+#include <imGUI/imgui.h>
+#include <imGUI/imgui_impl_glfw.h>
+#include <imGUI/imgui_impl_opengl3.h>
+
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <iostream>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
 // settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
-
-const char* vertexShaderSource = "#version 330 core\n"
-"layout (location = 0) in vec3 aPos;\n"
-"void main()\n"
-"{\n"
-"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-"}\0";
-const char* fragmentShaderSource = "#version 330 core\n"
-"out vec4 FragColor;\n"
-"void main()\n"
-"{\n"
-"   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-"}\n\0";
+unsigned int SCR_WIDTH = 800;
+unsigned int SCR_HEIGHT = 600;
 
 int main()
 {
@@ -61,147 +55,149 @@ int main()
 	}
 
 	glEnable(GL_DEPTH_TEST);
-	// build and compile our shader program
-	// ------------------------------------
-	// vertex shader
-	unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
-	glCompileShader(vertexShader);
-	// check for shader compile errors
-	int success;
-	char infoLog[512];
-	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-	if (!success)
-	{
-		glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-	}
-	// fragment shader
-	unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
-	glCompileShader(fragmentShader);
-	// check for shader compile errors
-	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-	if (!success)
-	{
-		glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-	}
-	// link shaders
-	unsigned int shaderProgram = glCreateProgram();
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-	glLinkProgram(shaderProgram);
-	// check for linking errors
-	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-	if (!success)
-	{
-		glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
-	}
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
 
-	// set up vertex data (and buffer(s)) and configure vertex attributes
-	// ------------------------------------------------------------------
-	float vertices[] = {
-		 0.5f,  0.5f, 0.0f,  // top right
-		 0.5f, -0.5f, 0.0f,  // bottom right
-		-0.5f, -0.5f, 0.0f,  // bottom left
-		-0.5f,  0.5f, 0.0f   // top left 
-	};
-	unsigned int indices[] = {  // note that we start from 0!
-		0, 1, 3,  // first Triangle
-		1, 2, 3   // second Triangle
-	};
-	unsigned int VBO, VAO, EBO;
-	glGenVertexArrays(1, &VAO);
-	glGenBuffers(1, &VBO);
-	glGenBuffers(1, &EBO);
-	// bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-	glBindVertexArray(VAO);
-
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-
-	// note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	// remember: do NOT unbind the EBO while a VAO is active as the bound element buffer object IS stored in the VAO; keep the EBO bound.
-	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-	// You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
-	// VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
-	glBindVertexArray(0);
-
-
-	// uncomment this call to draw in wireframe polygons.
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	Shader::LoadAll();
 	Log(Shader::GetLoadedShader(0)->GetName());
 	Model model = Model("box.blend");
 
 
-	// render loop
-	// -----------
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+
+	ImGui_ImplGlfw_InitForOpenGL(window, true);
+	ImGui_ImplOpenGL3_Init();
+
+	bool wireframe = false;
+
+	float fov = 45.0f;
+	float scale = 0.01f;
+	glm::mat4 projectionMat = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 1000.0f);
+	glm::mat4 orthoMat = glm::ortho(-(int)SCR_WIDTH * scale, SCR_WIDTH * scale, -(int)SCR_HEIGHT * scale, SCR_HEIGHT * scale);
+
+	bool debugMenuOpen = true;
+
+	glm::vec3 camPosition = glm::vec3(0.0f);
+	glm::vec3 camRotation = glm::vec3(0.0f);
+	float speed = 1.0f;
+	float previousTime = glfwGetTime();
+	double preX, preY = 0;
+	glfwGetCursorPos(window, &preX, &preY);
+
 	while (!glfwWindowShouldClose(window))
 	{
-		// input
-		// -----
-		processInput(window);
+		float deltaTime = glfwGetTime() - previousTime;
+		previousTime = glfwGetTime();
 
-		// render
-		// ------
+		glm::mat4 modelMat = glm::mat4(1.0f);
+
+		glm::mat4 viewMat = glm::mat4(1.0f);
+
+		if (wireframe)
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		else
+			glPolygonMode(GL_FRONT, GL_FILL);
+
+		processInput(window);
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+		{
+			ImGui::Begin("Debug", &debugMenuOpen);
+			ImGui::Checkbox("Wireframe", &wireframe);
+			ImGui::End();
+		}
+
+		double newX, newY = 0;
+		glfwGetCursorPos(window, &newX, &newY);
+		double deltaX, deltaY = 0;
+		deltaX = newX - preX;
+		deltaY = newY - preY;
+
+		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT))
+		{
+			glfwSetCursorPos(window, SCR_WIDTH / 2, SCR_HEIGHT / 2);
+			camRotation.y -= deltaX * 0.01f;
+			camRotation.x -= deltaY * 0.01f;
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+		}
+		else
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		glfwGetCursorPos(window, &preX, &preY);
+		glm::mat4 camMat = glm::rotate(glm::mat4(1.0f), camRotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
+		camMat = glm::rotate(camMat, camRotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
+
+		glm::quat quat = glm::quat_cast(camMat);
+		glm::vec3 up = quat * glm::vec3(0, 1, 0);
+		glm::vec3 front = quat * glm::vec3(0, 0, -1);
+		glm::vec3 right = quat * glm::vec3(1, 0, 0);
+
+		if (glfwGetKey(window, GLFW_KEY_W))
+			camPosition += front * speed * deltaTime;
+		if (glfwGetKey(window, GLFW_KEY_S))
+			camPosition -= front * speed * deltaTime;
+		if (glfwGetKey(window, GLFW_KEY_A))
+			camPosition -= right * speed * deltaTime;
+		if (glfwGetKey(window, GLFW_KEY_D))
+			camPosition += right * speed * deltaTime;
+		if (glfwGetKey(window, GLFW_KEY_SPACE))
+			camPosition += up * speed * deltaTime;
+		if (glfwGetKey(window, GLFW_KEY_C))
+			camPosition -= up * speed * deltaTime;
+
+
+		glm::mat4 viewmat = glm::lookAtRH(camPosition, camPosition + front, up);
+
+
+		glm::mat4 mvp = projectionMat * modelMat * viewmat;
+
+		Shader* shader = Shader::GetLoadedShader(1);
+		shader->setMat4("mvp", mvp);
+
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		// draw our first triangle
-		//glUseProgram(shaderProgram);
+
 		Shader::GetLoadedShader(1)->Activate();
 		model.Bind();
 		glDrawElements(GL_TRIANGLES, model.Meshes[0].Triangles.size(), GL_UNSIGNED_INT, 0);
-		//glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
-		//glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		// glBindVertexArray(0); // no need to unbind it every time 
-		// glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-		// -------------------------------------------------------------------------------
+
+
+
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
 		glfwSwapBuffers(window);
 		glfwPollEvents();
+		
 	}
 
-	// optional: de-allocate all resources once they've outlived their purpose:
-	// ------------------------------------------------------------------------
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
-	glDeleteBuffers(1, &EBO);
-	glDeleteProgram(shaderProgram);
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
 
-	// glfw: terminate, clearing all previously allocated GLFW resources.
-	// ------------------------------------------------------------------
+
 	glfwTerminate();
 	return 0;
 }
 
-// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
+
 void processInput(GLFWwindow* window)
 {
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 }
 
-// glfw: whenever the window size changed (by OS or user resize) this callback function executes
-// ---------------------------------------------------------------------------------------------
+
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-	// make sure the viewport matches the new window dimensions; note that width and 
-	// height will be significantly larger than specified on retina displays.
+	SCR_WIDTH = width;
+	SCR_HEIGHT = height;
 	glViewport(0, 0, width, height);
 }
